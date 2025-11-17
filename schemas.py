@@ -1,48 +1,55 @@
 """
-Database Schemas
+Database Schemas for PrevailPay
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model represents a collection in MongoDB.
+Collection name is the lowercase class name.
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict
 
-# Example schemas (replace with your own):
+class Company(BaseModel):
+    name: str
+    contact_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class WageRate(BaseModel):
+    craft: str = Field(..., description="Craft/classification name, e.g., Electrician")
+    base_rate: float = Field(..., ge=0, description="Base hourly rate")
+    fringe_rate: float = Field(0, ge=0, description="Hourly fringe amount")
+    apprentice_factor: Optional[float] = Field(0.6, ge=0, le=1, description="Multiplier for apprentice base pay (e.g., 0.6)")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Project(BaseModel):
+    name: str
+    agency: Optional[str] = Field(None, description="Contracting agency/owner")
+    county: Optional[str] = None
+    state: Optional[str] = None
+    project_number: Optional[str] = None
+    address: Optional[str] = None
+    wage_templates: List[WageRate] = Field(default_factory=list, description="Craft wage/fringe rates for this project")
+    apprentice_required_ratio: Optional[str] = Field(None, description="Optional note like 1:5")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Employee(BaseModel):
+    name: str
+    last_four_ssn: Optional[str] = Field(None, description="Last four digits for WH-347")
+    classification: Optional[str] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class TimesheetEntry(BaseModel):
+    project_id: str
+    employee_name: str
+    date: str  # YYYY-MM-DD
+    craft: str
+    hours: float = Field(..., ge=0)
+    apprentice: bool = False
+    week_ending: str = Field(..., description="Week ending date YYYY-MM-DD for grouping")
+
+class Submission(BaseModel):
+    project_id: str
+    week_ending: str
+    totals: Dict[str, float] = Field(default_factory=dict)
+    warnings: List[str] = Field(default_factory=list)
+    signer_name: Optional[str] = None
+    signer_title: Optional[str] = None
+    signed_at: Optional[str] = None
+    status: str = Field("generated", description="generated | signed")
